@@ -4,7 +4,9 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from pytube import YouTube
 from pytube.__main__ import YouTube
+from aiogram.types import KeyboardButton,ReplyKeyboardMarkup
 
+import os
 import config
 import sqlite3
 import logging
@@ -25,6 +27,15 @@ bot = Bot(config.token)
 dp = Dispatcher(bot, storage=MemoryStorage())
 storage = MemoryStorage()
 logging.basicConfig(level=logging.INFO)
+
+audio_button = KeyboardButton("Audio")
+video_button = KeyboardButton("Video")
+
+
+buttons = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+buttons.add(audio_button)
+buttons.add(video_button)
+
 
 class DownloadAudio(StatesGroup):
     download = State()
@@ -58,7 +69,7 @@ async def start(message : types.Message):
     if result ==[]:
         cur.execute(f"INSERT INTO users VALUES ('{message.from_user.username}', {message.from_user.id}, {message.chat.id});")
     connect.commit()
-    await message.answer(f"Здравстуйте,{message.from_user.full_name} \nЕсли хотите узнать обо мне больше нажмите: /help ")
+    await message.answer(f"Здравстуйте,{message.from_user.full_name} \nЕсли хотите узнать обо мне больше нажмите: /help", reply_markup=buttons)
 
 @dp.message_handler(commands=["help"])
 async def help(message: types.Message):
@@ -91,7 +102,7 @@ async def mailing(message : types.Message, state : FSMContext):
         await message.answer("Произошла ошибка, повторите попытку позже")
         await state.finish()
 
-@dp.message_handler(commands=["video_download"])
+@dp.message_handler(text=["Video"])
 async def video_download(message: types.Message):
     await message.answer("Отправьте ссылку на видео в ютубе и я вам его отправлю")
     await DownloadVideo.download.set()
@@ -107,12 +118,13 @@ async def download_video(message: types.Message, state : FSMContext):
             await bot.send_video(message.chat.id, video)
         except:
             await message.answer("Произошла ошибка, попробуйте позже")
+        os.remove(f'video/{title}')
         await state.finish()
     except:
         await message.answer("Неверная ссылка на видео")
         await state.finish()
 
-@dp.message_handler(commands="audio_download")
+@dp.message_handler(text="Audio")
 async def audio_download(message: types.Message):
     await message.answer("Отправьте ссылку на видео и я вам отправлю его в mp3")
     await DownloadAudio.download.set()
@@ -128,6 +140,8 @@ async def download_audio(message :types.Message,state : FSMContext):
             await bot.send_audio(message.chat.id,audio)
         except:
             await message.answer("Произошла ошибка,попробуйте позже")
+        os.remove(f'audio/{title}')
+        
         await state.finish()
     except:
         await message.answer("Неверная ссылка на видео")
